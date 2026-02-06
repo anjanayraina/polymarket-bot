@@ -34,5 +34,4 @@ class Config:
         self.COINGLASS_API_KEY = os.getenv("COINGLASS_API_KEY")
         self.CRYPTOPANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
 
-# Singleton instance
 settings = Config()

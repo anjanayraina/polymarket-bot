@@ -1,6 +1,7 @@
+import asyncio
 import json
-import logging
 import anthropic
+from helpers.logger import logger
 
 from helpers.constants import AI_MODEL, AI_CONFIDENCE_THRESHOLD, SYSTEM_PROMPT, BRAIN_PROMPT_TEMPLATE
 from models.market import MarketSignals
@@ -10,7 +11,6 @@ from models.ai import AIDecision
 class Brain:
     def __init__(self, api_key: str):
         self.client = anthropic.Anthropic(api_key=api_key)
-        self.logger = logging.getLogger("Brain")
 
     def analyze_market(self, signals: MarketSignals, odds: PolymarketOdds) -> AIDecision:
         """Uses Claude to decide on a trade based on signals and current odds."""
@@ -30,16 +30,13 @@ class Brain:
                 ]
             )
             
-            # Content is in message.content[0].text
             content = message.content[0].text
-            
-            # Parse into Pydantic model
             decision = AIDecision.model_validate_json(content)
-            self.logger.info(f"Claude Decision: {decision.action} (Conf: {decision.confidence})")
+            logger.info(f"Claude Decision: {decision.action} (Conf: {decision.confidence})")
             return decision
             
         except Exception as e:
-            self.logger.error(f"Error in Brain analysis (Claude): {e}")
+            logger.error(f"Error in Brain analysis (Claude): {e}")
             return AIDecision(
                 action="WAIT", 
                 confidence=0.0, 

@@ -1,11 +1,11 @@
 import asyncio
 import json
-import logging
 import requests
 import websockets
 from datetime import datetime
 from typing import List
 
+from helpers.logger import logger
 from helpers.constants import (
     BINANCE_WS_URL_TEMPLATE,
     BINANCE_FUNDING_URL_TEMPLATE,
@@ -32,7 +32,6 @@ class DataStreamer:
         
         self.binance_depth_bids: List[OrderBookWall] = []
         self.binance_depth_asks: List[OrderBookWall] = []
-        self.logger = logging.getLogger("DataStreamer")
 
     async def start_binance_websocket(self, symbol: str = DEFAULT_WS_SYMBOL):
         """Streams Binance depth data via WebSocket."""
@@ -40,14 +39,14 @@ class DataStreamer:
         while True:
             try:
                 async with websockets.connect(url) as websocket:
-                    self.logger.info(f"Connected to Binance WebSocket for {symbol}")
+                    logger.info(f"Connected to Binance WebSocket for {symbol}")
                     while True:
                         message = await websocket.recv()
                         data = json.loads(message)
                         self.binance_depth_bids = [OrderBookWall(price=float(p), volume=float(q)) for p, q in data["bids"]]
                         self.binance_depth_asks = [OrderBookWall(price=float(p), volume=float(q)) for p, q in data["asks"]]
             except Exception as e:
-                self.logger.error(f"Binance WebSocket error: {e}. Reconnecting in 5s...")
+                logger.error(f"Binance WebSocket error: {e}. Reconnecting in 5s...")
                 await asyncio.sleep(5)
 
     def get_order_book_walls(self, current_price: float, range_pct: float = 0.005) -> OrderBookWalls:
@@ -58,7 +57,6 @@ class DataStreamer:
         bid_walls = [b for b in self.binance_depth_bids if b.price >= lower_bound]
         ask_walls = [a for a in self.binance_depth_asks if a.price <= upper_bound]
         
-        # Sort by volume to find the biggest walls
         bid_walls.sort(key=lambda x: x.volume, reverse=True)
         ask_walls.sort(key=lambda x: x.volume, reverse=True)
         
@@ -79,7 +77,7 @@ class DataStreamer:
                 funding_rate_1h_avg=current_rate
             )
         except Exception as e:
-            self.logger.error(f"Error fetching Binance funding rate: {e}")
+            logger.error(f"Error fetching Binance funding rate: {e}")
             return FundingInfo(current_funding_rate=0.0, funding_rate_1h_avg=0.0)
 
     def get_coinglass_liquidations(self, symbol: str = DEFAULT_CRYPTO_SYMBOL) -> LiquidationData:
@@ -99,7 +97,7 @@ class DataStreamer:
                     long_vol=float(data.get("longVolUsd", 0))
                 )
         except Exception as e:
-            self.logger.error(f"Error fetching Coinglass liquidations: {e}")
+            logger.error(f"Error fetching Coinglass liquidations: {e}")
             
         return LiquidationData(short_vol=0, long_vol=0)
 
@@ -128,7 +126,7 @@ class DataStreamer:
                 headlines=headlines
             )
         except Exception as e:
-            self.logger.error(f"Error fetching CryptoPanic sentiment: {e}")
+            logger.error(f"Error fetching CryptoPanic sentiment: {e}")
             
         return NewsSentiment(sentiment_score=5.0, headlines=[])
 

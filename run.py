@@ -5,18 +5,7 @@ from datetime import datetime
 
 # Import Main
 from src.main import main
-
-# Configure Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(f"bot_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-    ]
-)
-
-logger = logging.getLogger("Runner")
+from src.helpers.logger import logger
 
 if __name__ == "__main__":
     logger.info("Starting Polymarket Sniper Bot Runner...")
