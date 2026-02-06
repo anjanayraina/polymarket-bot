@@ -1,0 +1,6 @@
+py-clob-client
+openai
+websockets
+requests
+python-dotenv
+pydantic
