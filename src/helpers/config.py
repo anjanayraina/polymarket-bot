@@ -7,8 +7,8 @@ class Config:
         # 1. Determine environment (default to local)
         self.app_env = os.getenv("APP_ENV", "local").lower()
         
-        # 2. Construct path to resources folder
-        base_dir = Path(__file__).resolve().parent
+        # 2. Construct path to resources folder (it's now two levels up from this file)
+        base_dir = Path(__file__).resolve().parent.parent
         env_file_name = f".env.{self.app_env}"
         env_path = base_dir / "resources" / env_file_name
         

@@ -1,13 +1,15 @@
 import asyncio
-import json
 import logging
 import sys
 
-from data_streamer import DataStreamer
-from brain import Brain
-from trader import PolymarketTrader
-
-from config import settings
+# Update imports to new structure
+from services.data_streamer import DataStreamer
+from services.brain import Brain
+from services.trader import PolymarketTrader
+from helpers.constants import AI_CONFIDENCE_THRESHOLD, DEFAULT_TRADE_AMOUNT
+from helpers.config import settings
+from models.polymarket import MarketInfo
+from models.ai import AIDecision
 
 # Configure Logging
 logging.basicConfig(
@@ -18,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger("Main")
 
 async def main():
-    # Environment Variables
+    # Environment Variables from Pydantic-like settings (though settings itself info/Config is a class)
     PK = settings.POLYGON_PRIVATE_KEY
     CLOB_API_KEY = settings.CLOB_API_KEY
     CLOB_SECRET = settings.CLOB_SECRET
@@ -45,74 +47,53 @@ async def main():
     # Market Discovery
     logger.info("Discovering active BTC 15-minute markets...")
     btc_markets = trader.find_active_btc_markets()
-    if not btc_markets:
-        logger.warning("No active BTC 15-minute markets found. Will retry in loop.")
-        market = None
+    market: MarketInfo = btc_markets[0] if btc_markets else None
+    
+    if market:
+        logger.info(f"Connected to market: {market.question}")
     else:
-        market = btc_markets[0]
-        logger.info(f"Connected to market: {market.get('question')}")
+        logger.warning("No active BTC 15-minute markets found. Will retry in loop.")
 
     while True:
         try:
-            # Refresh market if none found
+            # Refresh market if none active
             if not market:
                 btc_markets = trader.find_active_btc_markets()
                 if btc_markets:
                     market = btc_markets[0]
-                    logger.info(f"Market found: {market.get('question')}")
+                    logger.info(f"Market found: {market.question}")
                 else:
                     await asyncio.sleep(60)
                     continue
 
             # 1. Get current BTC price
-            if not streamer.binance_depth["bids"]:
+            if not streamer.binance_depth_bids:
                 logger.warning("Waiting for Binance depth data...")
                 await asyncio.sleep(5)
                 continue
                 
-            current_btc_price = streamer.binance_depth["bids"][0][0]
+            current_btc_price = streamer.binance_depth_bids[0].price
             
-            # 2. Get Signals
+            # 2. Get Signals (Returns MarketSignals Pydantic model)
             signals = streamer.get_all_signals(current_btc_price)
             
-            # 3. Get Polymarket Odds
-            tokens = json.loads(market.get("outcomes", "[]"))
-            # tokens is usually ['Yes', 'No'] or similar. 
-            # We need the clobTokenIds which are in market.get('clobTokenIds')
-            token_ids = market.get("clobTokenIds", [])
-            if len(token_ids) < 2:
-                logger.error("Market token IDs not found.")
-                market = None
-                continue
-
-            # Map Yes/No to Token IDs
-            yes_token = token_ids[0]
-            no_token = token_ids[1]
-
-            odds = trader.get_market_odds(yes_token) # Odds are usually per token book
+            # 3. Get Polymarket Odds (Returns PolymarketOdds Pydantic model)
+            odds = trader.get_market_odds(market.yes_token)
             
-            # 4. AI Decision
-            decision = brain.analyze_market(signals, odds)
+            # 4. AI Decision (Returns AIDecision Pydantic model)
+            decision: AIDecision = brain.analyze_market(signals, odds)
             
-            if decision.get("confidence", 0) > 0.80:
-                action = decision.get("action")
-                reasoning = decision.get("reasoning")
+            if decision.confidence > AI_CONFIDENCE_THRESHOLD:
+                logger.info(f"SIGNAL DETECTED: {decision.action} | Confidence: {decision.confidence}")
+                logger.debug(f"Reasoning: {decision.reasoning}")
                 
-                logger.info(f"SIGNAL DETECTED: {action} | Confidence: {decision['confidence']}")
-                logger.debug(f"Reasoning: {reasoning}")
-                
-                amount_usdc = 10 # Default size
-                if action == "BUY_UP":
-                    # Buy YES shares
-                    trader.execute_trade(yes_token, "BUY", amount_usdc, odds["yes_price"] + 0.01)
-                elif action == "BUY_DOWN":
-                    # Buy NO shares
-                    trader.execute_trade(no_token, "BUY", amount_usdc, odds["no_price"] + 0.01)
+                if decision.action == "BUY_UP":
+                    trader.execute_trade(market.yes_token, DEFAULT_TRADE_AMOUNT, odds.yes_price + 0.01)
+                elif decision.action == "BUY_DOWN":
+                    trader.execute_trade(market.no_token, DEFAULT_TRADE_AMOUNT, odds.no_price + 0.01)
                 
             # 5. Auto Merging
-            condition_id = market.get("conditionId")
-            if condition_id:
-                trader.merge_shares(condition_id)
+            trader.merge_shares(market.condition_id)
 
         except Exception as e:
             logger.error(f"Loop error: {e}")
