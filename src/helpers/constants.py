@@ -1,8 +1,8 @@
 # AI Brain Constants
-AI_MODEL = "gpt-4o-mini"
+AI_MODEL = "claude-3-5-sonnet-20240620"
 AI_CONFIDENCE_THRESHOLD = 0.80
 
-SYSTEM_PROMPT = "You are a high-frequency trading bot brain specializing in BTC/Polymarket arbitrage."
+SYSTEM_PROMPT = "You are a high-frequency trading bot brain specializing in BTC/Polymarket arbitrage. You must respond ONLY in a valid JSON object."
 
 BRAIN_PROMPT_TEMPLATE = """
 Analyze the provided BTC market data. Your goal is to identify if the 15-minute BTC direction is mispriced.

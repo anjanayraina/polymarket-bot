@@ -20,16 +20,16 @@ logging.basicConfig(
 logger = logging.getLogger("Main")
 
 async def main():
-    # Environment Variables from Pydantic-like settings (though settings itself info/Config is a class)
     PK = settings.POLYGON_PRIVATE_KEY
     CLOB_API_KEY = settings.CLOB_API_KEY
     CLOB_SECRET = settings.CLOB_SECRET
     CLOB_PASSPHRASE = settings.CLOB_PASSPHRASE
     OPENAI_KEY = settings.OPENAI_API_KEY
+    ANTHROPIC_KEY = settings.ANTHROPIC_API_KEY
     COINGLASS_KEY = settings.COINGLASS_API_KEY
     CRYPTOPANIC_KEY = settings.CRYPTOPANIC_API_KEY
 
-    if not all([PK, CLOB_API_KEY, OPENAI_KEY]):
+    if not all([PK, CLOB_API_KEY, ANTHROPIC_KEY]):
         logger.error("Missing critical environment variables. Check your config in src/resources/.")
         return
 
@@ -38,7 +38,7 @@ async def main():
         coinglass_api_key=COINGLASS_KEY,
         cryptopanic_api_key=CRYPTOPANIC_KEY
     )
-    brain = Brain(api_key=OPENAI_KEY)
+    brain = Brain(api_key=ANTHROPIC_KEY)
     trader = PolymarketTrader(PK, CLOB_API_KEY, CLOB_SECRET, CLOB_PASSPHRASE)
 
     # Start Binance WebSocket in background

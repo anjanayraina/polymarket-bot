@@ -1,5 +1,6 @@
 py-clob-client
 openai
+anthropic
 websockets
 requests
 python-dotenv
