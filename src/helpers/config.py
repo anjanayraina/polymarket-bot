@@ -26,12 +26,7 @@ class Config:
         self.CLOB_PASSPHRASE = os.getenv("CLOB_PASSPHRASE")
         self.CLOB_HOST = os.getenv("CLOB_HOST", "https://clob.polymarket.com")
         
-        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-        
-        self.BINANCE_API_KEY = os.getenv("BINANCE_API_KEY")
-        self.BINANCE_SECRET = os.getenv("BINANCE_SECRET")
         self.COINGLASS_API_KEY = os.getenv("COINGLASS_API_KEY")
-        self.CRYPTOPANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
 
 settings = Config()

@@ -8,6 +8,7 @@ from services.data_streamer import DataStreamer
 from services.brain import Brain
 from services.trader import PolymarketTrader
 from services.trading_engine import TradingEngine
+from services.notification_service import NotificationService
 
 async def main():
     """
@@ -25,8 +26,7 @@ async def main():
 
         # 2. Initialize Services
         streamer = DataStreamer(
-            coinglass_api_key=settings.COINGLASS_API_KEY,
-            cryptopanic_api_key=settings.CRYPTOPANIC_API_KEY
+            coinglass_api_key=settings.COINGLASS_API_KEY
         )
         brain = Brain(api_key=settings.ANTHROPIC_API_KEY)
         trader = PolymarketTrader(
@@ -35,12 +35,14 @@ async def main():
             settings.CLOB_SECRET, 
             settings.CLOB_PASSPHRASE
         )
+        notifier = NotificationService()
         engine = TradingEngine()
 
         # 3. Register Services in Locator
         service_locator.register(DataStreamer, streamer)
         service_locator.register(Brain, brain)
         service_locator.register(PolymarketTrader, trader)
+        service_locator.register(NotificationService, notifier)
         service_locator.register(TradingEngine, engine)
 
         logger.info("Application bootstrap complete. Starting Trading Engine...")

@@ -55,28 +55,37 @@ class PolymarketTrader:
             return PolymarketOdds(yes_price=0.5, no_price=0.5)
 
     def execute_trade(self, token_id: str, amount_usdc: float, price_limit: float):
-        """Executes a trade with fee checks and slippage protection."""
+        """Dry Run mode: Logs what would have been executed but sends no transactions."""
         try:
-            total_cost = amount_usdc * (1 + self.taker_fee)
+            # Dynamic Fee Logic (2026): Fees are highest near $0.50
+            # Let's calculate the distance from 0.50
+            distance_from_mid = abs(price_limit - 0.50)
+            # Example dynamic fee: base 0.001 + surcharge based on proximity to 0.50
+            # Peak fee at 0.50 could be 0.01 (1%)
+            dynamic_fee = 0.001 + (0.009 * (1 - (distance_from_mid / 0.5)))
+            
+            total_cost = amount_usdc * (1 + dynamic_fee)
             potential_payout = amount_usdc / price_limit if price_limit > 0 else 0
             
-            if potential_payout <= total_cost:
-                logger.warning(f"Trade rejected: Payout (${potential_payout:.2f}) <= Cost (${total_cost:.2f})")
-                return None
-
-            order_args = OrderArgs(
-                price=price_limit,
-                size=amount_usdc / price_limit,
-                side="BUY",
-                token_id=token_id
-            )
+            logger.info("--- DRY RUN EXECUTION ---")
+            logger.info(f"WOULD POST ORDER: {amount_usdc / price_limit:.2f} shares of {token_id} at ${price_limit:.2f}")
+            logger.info(f"Estimated Dynamic Fee: {dynamic_fee*100:.2f}% (Price: ${price_limit:.2f})")
+            logger.info(f"Total Cost: ${total_cost:.2f} | Potential Payout: ${potential_payout:.2f}")
             
-            resp = self.client.post_order(order_args)
-            logger.info(f"Order posted for {token_id}: {resp}")
-            return resp
+            if potential_payout <= total_cost:
+                logger.warning(f"DRY RUN ALERT: Trade would be UNPROFITABLE after fees.")
+            
+            # Return a mock response
+            return {
+                "status": "DRY_RUN",
+                "token_id": token_id,
+                "amount": amount_usdc,
+                "price": price_limit,
+                "dynamic_fee": dynamic_fee
+            }
             
         except Exception as e:
-            logger.error(f"Execution error: {e}")
+            logger.error(f"Dry run error: {e}")
             return None
 
     def merge_shares(self, condition_id: str):

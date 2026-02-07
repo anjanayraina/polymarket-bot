@@ -10,7 +10,6 @@ from helpers.constants import (
     BINANCE_WS_URL_TEMPLATE,
     BINANCE_FUNDING_URL_TEMPLATE,
     COINGLASS_LIQUIDATION_URL,
-    CRYPTOPANIC_API_URL,
     DEFAULT_CRYPTO_SYMBOL,
     DEFAULT_BINANCE_SYMBOL,
     DEFAULT_WS_SYMBOL
@@ -20,15 +19,12 @@ from models.market import (
     OrderBookWall, 
     OrderBookWalls, 
     FundingInfo, 
-    LiquidationData, 
-    NewsSentiment
+    LiquidationData
 )
 
 class DataStreamer:
-    def __init__(self, binance_api_key: str = None, coinglass_api_key: str = None, cryptopanic_api_key: str = None):
-        self.binance_api_key = binance_api_key
+    def __init__(self, coinglass_api_key: str = None):
         self.coinglass_api_key = coinglass_api_key
-        self.cryptopanic_api_key = cryptopanic_api_key
         
         self.binance_depth_bids: List[OrderBookWall] = []
         self.binance_depth_asks: List[OrderBookWall] = []
@@ -101,35 +97,6 @@ class DataStreamer:
             
         return LiquidationData(short_vol=0, long_vol=0)
 
-    def get_cryptopanic_sentiment(self) -> NewsSentiment:
-        """Fetches latest news sentiment from CryptoPanic."""
-        if not self.cryptopanic_api_key:
-            return NewsSentiment(sentiment_score=5.0, headlines=[])
-            
-        try:
-            url = f"{CRYPTOPANIC_API_URL}?auth_token={self.cryptopanic_api_key}&currencies=BTC"
-            response = requests.get(url).json()
-            
-            posts = response.get("results", [])[:3]
-            headlines = [p.get("title") for p in posts]
-            
-            pos_votes = sum(p.get("votes", {}).get("positive", 0) for p in posts)
-            neg_votes = sum(p.get("votes", {}).get("negative", 0) for p in posts)
-            
-            total = pos_votes + neg_votes
-            sentiment_score = 5.0
-            if total > 0:
-                sentiment_score = (pos_votes / total) * 10
-                
-            return NewsSentiment(
-                sentiment_score=round(float(sentiment_score), 2),
-                headlines=headlines
-            )
-        except Exception as e:
-            logger.error(f"Error fetching CryptoPanic sentiment: {e}")
-            
-        return NewsSentiment(sentiment_score=5.0, headlines=[])
-
     def get_all_signals(self, current_btc_price: float) -> MarketSignals:
         """Aggregates all signals for the AI Brain."""
         return MarketSignals(
@@ -137,6 +104,5 @@ class DataStreamer:
             btc_price=current_btc_price,
             order_book=self.get_order_book_walls(current_btc_price),
             funding=self.get_binance_funding_rate(),
-            liquidations=self.get_coinglass_liquidations(),
-            news=self.get_cryptopanic_sentiment()
+            liquidations=self.get_coinglass_liquidations()
         )

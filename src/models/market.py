@@ -18,14 +18,9 @@ class LiquidationData(BaseModel):
     short_vol: float
     long_vol: float
 
-class NewsSentiment(BaseModel):
-    sentiment_score: float
-    headlines: List[str]
-
 class MarketSignals(BaseModel):
     timestamp: datetime
     btc_price: float
     order_book: OrderBookWalls
     funding: Optional[FundingInfo]
     liquidations: LiquidationData
-    news: NewsSentiment

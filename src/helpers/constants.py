@@ -14,10 +14,18 @@ Polymarket Current Odds:
 {odds}
 
 Instructions:
-If Binance walls and funding suggest a drop, but 'DOWN' shares are still < $0.52, recommend 'BUY_DOWN'.
-Conversely, if indicators suggest a pump and 'UP' shares are cheap, recommend 'BUY_UP'.
+1. Identify the current 15m BTC Trend (Bullish/Bearish/Neutral).
+2. Analyze Binance Order Book Walls for immediate support/resistance.
+3. Factor in Funding Rates and Liquidation clusters.
+4. If Binance walls and funding suggest a drop, but 'DOWN' shares are still < $0.52, recommend 'BUY_DOWN'.
+5. Conversely, if indicators suggest a pump and 'UP' shares are cheap, recommend 'BUY_UP'.
 
-Output strictly in JSON: {{'action': 'BUY_UP'|'BUY_DOWN'|'WAIT', 'confidence': float, 'reasoning': string}}.
+Output strictly in JSON: 
+{{
+  "action": "BUY_UP" | "BUY_DOWN" | "WAIT", 
+  "confidence": float, 
+  "reasoning": "A detailed breakdown including: 1) Trend Analysis, 2) Order Book Wall status, 3) Liquidation/Funding context."
+}}
 Only recommend a trade if confidence is > {threshold}.
 """
 
@@ -31,7 +39,6 @@ DEFAULT_TRADE_AMOUNT = 10
 BINANCE_WS_URL_TEMPLATE = "wss://stream.binance.com:9443/ws/{symbol}@depth20@100ms"
 BINANCE_FUNDING_URL_TEMPLATE = "https://fapi.binance.com/fapi/v1/premiumIndex?symbol={symbol}"
 COINGLASS_LIQUIDATION_URL = "https://open-api.coinglass.com/public/v2/liquidation_info"
-CRYPTOPANIC_API_URL = "https://cryptopanic.com/api/v1/posts/"
 
 DEFAULT_CRYPTO_SYMBOL = "BTC"
 DEFAULT_BINANCE_SYMBOL = "BTCUSDT"

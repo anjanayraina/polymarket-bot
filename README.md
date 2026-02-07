@@ -1,15 +1,14 @@
-# Polymarket BTC Sniper Bot
+# Polymarket BTC Signal Sniper
 
-AI-Powered "Taker" Sniper Bot for Polymarket's 15-minute BTC Up/Down markets.
+Autonomous Suggestion Agent for Polymarket's 15-minute BTC Up/Down markets. This bot acts as a "Human-in-the-Loop" advisor, identifying high-conviction signals without auto-executing trades.
 
 ## Features
-- **Real-time Data ingestion**: Streams Binance Order Book via WebSockets.
-- **Multi-Signal Analysis**: Analyzes Funding Rates, Liquidation Spikes (Coinglass), and News Sentiment (CryptoPanic).
-- **AI Brain**: Powered by OpenAI `gpt-4o-mini` for fast, low-latency decision making.
-- **Execution Guardrails**:
-  - Taker Fee check (3.15% threshold).
-  - Slippage protection with price limits.
-  - Automatic share merging to recover USDC.
+- **Real-time Signal Analysis**: Streams Binance Order Book via WebSockets.
+- **Advanced Context**: Analyzes Funding Rates and Liquidation Clusters (Coinglass).
+- **AI Reasoning**: Powered by Claude 3.5 Sonnet for detailed "Trade Briefs".
+- **Human-in-the-Loop**: Presents structured briefs in the terminal and waits for user confirmation before logging a "Dry Run".
+- **Dynamic Fee Engine (2026)**: Simulates taker fees that dynamically adjust based on price proximity to the $0.50 range.
+- **Persistent Suggestions**: Automatically logs high-confidence trade signals to `suggestions.log`.
 
 ## Setup
 
@@ -19,21 +18,19 @@ AI-Powered "Taker" Sniper Bot for Polymarket's 15-minute BTC Up/Down markets.
    ```
 
 2. **Configure Environment Variables**:
-   Copy `.env.example` to `.env` and fill in your keys:
-   ```bash
-   cp .env.example .env
-   ```
+   Copy `src/resources/.env.example` to `src/resources/.env.local` and fill in your keys.
 
-3. **Run the Bot**:
+3. **Run the Agent**:
    ```bash
    python src/main.py
    ```
 
 ## Architecture
-- `src/data_streamer.py`: Handles Binance WebSocket and REST APIs for Coinglass/CryptoPanic.
-- `src/brain.py`: Sends signals to OpenAI for trade decisions.
-- `src/trader.py`: Manages Polymarket CLOB interactions and trade execution.
-- `src/main.py`: Orchestrates the trading loop every 10 seconds.
+- `src/services/data_streamer.py`: Handles Binance WebSocket and Coinglass API.
+- `src/services/brain.py`: Sends aggregated signals to Claude for analysis.
+- `src/services/trader.py`: Manages dry-run logic and simulated execution.
+- `src/services/notification_service.py`: Logs suggestions to a local file.
+- `src/services/trading_engine.py`: Orchestrates the sniped signal loop and user interaction.
 
 ## Disclaimer
-This is a trading bot and carries financial risk. Use at your own risk. Ensure you have sufficient USDC on Polygon and the necessary allowances set for the Polymarket CLOB.
+This is for informational purposes only. Trading involves risk. Use the "Dry Run" mode to test strategies before considering live deployment.
