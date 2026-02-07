@@ -9,15 +9,22 @@ from helpers.constants import TAKER_FEE, BTC_MARKET_QUESTION_FILTER, TIME_FRAME_
 from models.polymarket import PolymarketOdds, MarketInfo
 
 class PolymarketTrader:
-    def __init__(self, private_key: str, api_key: str, secret: str, passphrase: str, host: str = "https://clob.polymarket.com"):
-        self.client = ClobClient(
-            host=host,
-            key=api_key,
-            secret=secret,
-            passphrase=passphrase,
-            private_key=private_key,
-            chain_id=POLYGON
-        )
+    def __init__(self, private_key: str = None, api_key: str = None, secret: str = None, passphrase: str = None, host: str = "https://clob.polymarket.com"):
+        self.is_public_only = not all([private_key, api_key, secret, passphrase])
+        
+        if self.is_public_only:
+            logger.info("Initializing PolymarketTrader in PUBLIC-ONLY mode (No API keys provided).")
+            # We can still initialize the client for public data
+            self.client = ClobClient(host=host, chain_id=POLYGON)
+        else:
+            self.client = ClobClient(
+                host=host,
+                key=api_key,
+                secret=secret,
+                passphrase=passphrase,
+                private_key=private_key,
+                chain_id=POLYGON
+            )
         self.taker_fee = TAKER_FEE
 
     def find_active_btc_markets(self) -> List[MarketInfo]:
@@ -89,7 +96,11 @@ class PolymarketTrader:
             return None
 
     def merge_shares(self, condition_id: str):
-        """Merges YES and NO shares to recover USDC."""
+        """Merges YES and NO shares to recover USDC (Requires Authorization)."""
+        if self.is_public_only:
+            logger.debug("Merge skipped: Authenticated actions are disabled in PUBLIC mode.")
+            return None
+            
         try:
             resp = self.client.post_merge(condition_id)
             logger.info(f"Merge outcome for {condition_id}: {resp}")

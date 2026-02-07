@@ -15,6 +15,12 @@ class TradingEngine:
         self.brain: Brain = None
         self.trader: PolymarketTrader = None
         self.market: MarketInfo = None
+        
+        # State exposure for API
+        self.latest_signals = None
+        self.latest_odds = None
+        self.latest_brief = None
+        self.confirmation_queue = asyncio.Queue()
 
     def _resolve_dependencies(self):
         self.streamer = service_locator.get(DataStreamer)
@@ -94,6 +100,10 @@ class TradingEngine:
                 signals = self.streamer.get_all_signals(current_btc_price)
                 odds = self.trader.get_market_odds(self.market.yes_token)
                 
+                # Update state for API
+                self.latest_signals = signals
+                self.latest_odds = odds
+                
                 decision: AIDecision = self.brain.analyze_market(signals, odds)
                 
                 if decision.confidence > AI_CONFIDENCE_THRESHOLD and decision.action != "WAIT":
@@ -103,6 +113,16 @@ class TradingEngine:
                     fee = 0.001 + (0.009 * (1 - (dist / 0.5)))
 
                     self._generate_trade_brief(decision, signals, odds, fee)
+                    
+                    # Store brief for API
+                    self.latest_brief = {
+                        "action": decision.action,
+                        "confidence": decision.confidence,
+                        "reasoning": decision.reasoning,
+                        "btc_price": signals.btc_price,
+                        "fee": fee,
+                        "timestamp": signals.timestamp.isoformat()
+                    }
                     
                     # Notification System
                     if "BUY" in decision.action:
@@ -114,20 +134,37 @@ class TradingEngine:
                             self.market.yes_token if decision.action == "BUY_UP" else self.market.no_token
                         )
 
-                    # Interactive Verification
+                    # Interactive Verification (Dual Mode: Terminal + API Queue)
                     print("\n[REQUEST REVIEW] Review the Trade Brief above.")
-                    user_input = await asyncio.to_thread(input, "Type 'CONTINUE' to log Dry Run execution or 'SKIP' to ignore: ")
+                    print("Type 'CONTINUE' in terminal OR POST to /trade/confirm via API.")
+                    
+                    async def wait_for_terminal():
+                        return await asyncio.to_thread(input, "Type 'CONTINUE' to log Dry Run execution or 'SKIP' to ignore: ")
+
+                    async def wait_for_api():
+                        return await self.confirmation_queue.get()
+
+                    # Wait for first response
+                    done, pending = await asyncio.wait(
+                        [asyncio.create_task(wait_for_terminal()), asyncio.create_task(wait_for_api())],
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                    
+                    user_input = list(done)[0].result()
+                    for task in pending:
+                        task.cancel()
                     
                     if user_input.strip().upper() == 'CONTINUE':
                         if decision.action == "BUY_UP":
                             self.trader.execute_trade(self.market.yes_token, DEFAULT_TRADE_AMOUNT, odds.yes_price + 0.01)
                         elif decision.action == "BUY_DOWN":
                             self.trader.execute_trade(self.market.no_token, DEFAULT_TRADE_AMOUNT, odds.no_price + 0.01)
+                        self.latest_brief = None # Clear after execution
                     else:
-                        logger.info("Signal skipped by user.")
+                        logger.info("Signal skipped.")
+                        self.latest_brief = None
                     
-                self.trader.merge_shares(self.market.condition_id)
-
+                # NOTE: merge_shares is removed here to support public-only mode
             except Exception as e:
                 logger.error(f"Engine loop error: {e}")
                 
