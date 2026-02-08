@@ -9,7 +9,7 @@ def setup_logger(name: str = "PolymarketBot") -> logging.Logger:
     if logger.hasHandlers():
         return logger
 
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     
     # Format
     formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')

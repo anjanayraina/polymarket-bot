@@ -6,6 +6,7 @@ import asyncio
 from helpers.service_locator import service_locator
 from services.trading_engine import TradingEngine
 from services.data_streamer import DataStreamer
+from services.trader import PolymarketTrader
 
 app = FastAPI(title="Polymarket Signal Sniper API")
 

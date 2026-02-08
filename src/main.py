@@ -3,7 +3,6 @@ from helpers.logger import logger
 from helpers.config import settings
 from helpers.service_locator import service_locator
 
-# Import Services
 from services.data_streamer import DataStreamer
 from services.brain import Brain
 from services.trader import PolymarketTrader

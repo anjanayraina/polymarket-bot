@@ -6,7 +6,7 @@ from py_clob_client.constants import POLYGON
 
 from helpers.logger import logger
 from helpers.constants import TAKER_FEE, BTC_MARKET_QUESTION_FILTER, TIME_FRAME_FILTER
-from models.polymarket import PolymarketOdds, MarketInfo
+from models.polymarket import PolymarketOdds, MarketInfo, ClobMarket
 
 class PolymarketTrader:
     def __init__(self, private_key: str = None, api_key: str = None, secret: str = None, passphrase: str = None, host: str = "https://clob.polymarket.com"):
@@ -30,21 +30,72 @@ class PolymarketTrader:
     def find_active_btc_markets(self) -> List[MarketInfo]:
         """Searches for active BTC 15-minute markets."""
         try:
-            markets = self.client.get_markets()
+            # Polymarket API returns a lot of old markets. We need to find the CURRENT ones.
+            # We fetch a large batch and filter deeply.
+            resp = self.client.get_markets()
+            
+            if isinstance(resp, dict):
+                raw_markets = resp.get("data", [])
+            elif isinstance(resp, list):
+                raw_markets = resp
+            else:
+                return []
+
+            # Parse with Pydantic for validation and easier access
+            markets: List[ClobMarket] = []
+            for m in raw_markets:
+                try:
+                    markets.append(ClobMarket(**m))
+                except Exception as e:
+                    # Skip malformed markets but log if it's a major issue
+                    logger.debug(f"Skipping malformed market data: {e}")
+            
             btc_15m_markets = []
-            for m in markets:
-                question = m.get("question", "")
-                if BTC_MARKET_QUESTION_FILTER in question and TIME_FRAME_FILTER in question:
-                    if m.get("active"):
-                        token_ids = m.get("clobTokenIds", [])
-                        if len(token_ids) >= 2:
-                            btc_15m_markets.append(MarketInfo(
-                                condition_id=m.get("conditionId"),
-                                question=question,
-                                yes_token=token_ids[0],
-                                no_token=token_ids[1],
-                                active=True
-                            ))
+            active_count = 0
+            
+            # Filter for markets that are actually open for business
+            open_markets = [m for m in markets if m.active and not m.closed and m.accepting_orders]
+            active_count = len(open_markets)
+            
+            logger.info(f"Retrieved {len(markets)} total markets. Found {active_count} currently active/open markets.")
+
+            for m in open_markets:
+                question = m.question or m.title or ""
+                
+                # BTC 15-minute markets are usually named "Bitcoin Price at [Time]" or "Will Bitcoin be above..."
+                # High frequency markets often have "15-minute" or specific time formats.
+                question_lower = question.lower()
+                is_btc = "bitcoin" in question_lower or "btc" in question_lower
+                
+                # Check for 15m or the "at X:XX" pattern which is standard for price markets
+                is_15m = any(x in question_lower for x in ["15-minute", "15 min", "15m", "bitcoin price at"])
+                
+                if is_btc and is_15m:
+                    logger.info(f"MATCH FOUND: {question}")
+                    
+                    # Extract tokens. Key can be 'tokens' (list) or 'clobTokenIds'
+                    if m.tokens and len(m.tokens) >= 2:
+                        btc_15m_markets.append(MarketInfo(
+                            condition_id=m.conditionId,
+                            question=question,
+                            yes_token=m.tokens[0].token_id,
+                            no_token=m.tokens[1].token_id,
+                            active=True
+                        ))
+                    elif m.clobTokenIds and len(m.clobTokenIds) >= 2:
+                        btc_15m_markets.append(MarketInfo(
+                            condition_id=m.conditionId,
+                            question=question,
+                            yes_token=m.clobTokenIds[0],
+                            no_token=m.clobTokenIds[1],
+                            active=True
+                        ))
+            
+            if not btc_15m_markets and active_count > 0:
+                # Log what we ARE finding to help narrow it down
+                current_btc_samples = [m.question for m in open_markets if "btc" in (m.question or "").lower() or "bitcoin" in (m.question or "").lower()][:5]
+                logger.warning(f"No 15m BTC markets in the {active_count} active markets. Samples: {current_btc_samples}")
+
             return btc_15m_markets
         except Exception as e:
             logger.error(f"Market search error: {e}")
